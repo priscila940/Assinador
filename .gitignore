@@ -1,0 +1,11 @@
+# Impede que arquivos pesados, temporários ou credenciais privadas 
+# sejam enviados acidentalmente para repositórios públicos (como o GitHub)
+
+node_modules/
+uploads/*
+assinados/*
+certificados/certificado.p12
+certificados/profile.mobileprovision
+zsign/
+.env
+*.log
