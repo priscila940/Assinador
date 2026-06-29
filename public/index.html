@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assinador IPA Web</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background-color: #0b0b0c;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { width: 100%; max-width: 400px; }
+        h1 { font-size: 32px; font-weight: 700; margin-bottom: 20px; }
+        .card {
+            background-color: #161618;
+            border-radius: 14px;
+            padding: 20px;
+            font-size: 14px;
+            color: #a1a1aa;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+        .btn-upload {
+            background-color: #27272a;
+            color: white;
+            border-radius: 30px;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            display: block;
+            text-align: center;
+            transition: background 0.2s;
+        }
+        .btn-upload:hover { background-color: #3f3f46; }
+        input[type="file"] { display: none; }
+        .status { margin-top: 20px; font-size: 14px; color: #3b82f6; text-align: center; }
+        .btn-install {
+            display: none;
+            margin-top: 20px;
+            background-color: #34c759;
+            color: white;
+            text-decoration: none;
+            padding: 14px;
+            text-align: center;
+            border-radius: 30px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Assinador</h1>
+    <div class="card">
+        Assine e instale qualquer aplicativo que você quiser. Você só precisa encontrar o arquivo .ipa do aplicativo que te interessa na Internet.
+    </div>
+    <label class="btn-upload">
+        Seleccionar arquivo IPA
+        <input type="file" id="ipaInput" accept=".ipa">
+    </label>
+    <div class="status" id="statusText"></div>
+    <a href="#" class="btn-install" id="installBtn">Instalar Aplicativo</a>
+</div>
+<script>
+    document.getElementById('ipaInput').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const statusText = document.getElementById('statusText');
+        const installBtn = document.getElementById('installBtn');
+        
+        statusText.innerText = "Assinando arquivo... Aguarde.";
+        installBtn.style.display = "none";
+
+        const formData = new FormData();
+        formData.append('ipa', file);
+
+        try {
+            const res = await fetch('/assinar', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                statusText.innerText = "Assinado com sucesso!";
+                installBtn.href = `itms-services://?action=download-manifest&url=${window.location.origin}/manifests/${data.id}.plist`;
+                installBtn.style.display = "block";
+            } else {
+                statusText.innerText = "Erro: " + data.error;
+            }
+        } catch (err) {
+            statusText.innerText = "Erro na conexão com o servidor.";
+        }
+    });
+</script>
+</body>
+</html>
