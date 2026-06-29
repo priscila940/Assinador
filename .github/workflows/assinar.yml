@@ -1,0 +1,82 @@
+name: Assinador Automático de IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      ipa_url:
+        description: 'Link direto do arquivo .ipa'
+        required: true
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Baixar o código do repositório
+      uses: actions/checkout@v4
+
+    # Atualizado para Node 22+ para corrigir o aviso de obsolescência visto na imagem image_3.png
+    - name: Configurar Node.js Atualizado
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Instalar dependências e compilar o zsign
+      run: |
+        sudo apt update && sudo apt install clang g++ libssl-dev -y
+        git clone https://github.com/zhlynn/zsign.git
+        cd zsign && g++ *.cpp -lcrypto -O3 -o zsign
+        sudo cp zsign /usr/local/bin/ && cd ..
+
+    - name: Baixar o IPA informado
+      run: |
+        mkdir -p public/assinados public/manifests
+        curl -L "${{ github.event.inputs.ipa_url }}" -o public/assinados/app.ipa
+
+    - name: Assinar o IPA com o zsign
+      run: |
+        # Substitua 'SUA_SENHA_AQUI' pela senha real do seu certificado .p12
+        zsign -k certificados/certificado.p12 -p "SUA_SENHA_AQUI" -m certificados/profile.mobileprovision -o public/assinados/app_assinado.ipa public/assinados/app.ipa
+
+    - name: Criar o Manifesto Plist
+      run: |
+        cat <<EOF > public/manifests/app.plist
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>items</key>
+            <array>
+                <dict>
+                    <key>assets</key>
+                    <array>
+                        <dict>
+                            <key>kind</key>
+                            <string>software-package</string>
+                            <key>url</key>
+                            <string>https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/assinados/app_assinado.ipa</string>
+                        </dict>
+                    </array>
+                    <key>metadata</key>
+                    <dict>
+                        <key>bundle-identifier</key>
+                        <string>com.github.actions.sign</string>
+                        <key>bundle-version</key>
+                        <string>1.0</string>
+                        <key>kind</key>
+                        <string>software</string>
+                        <key>title</key>
+                        <string>App Assinado via Actions</string>
+                    </dict>
+                </dict>
+            </array>
+        </dict>
+        </plist>
+        EOF
+
+    - name: Publicar alterações no GitHub Pages
+      run: |
+        git config --global user.name "GitHub Action"
+        git config --global user.email "actions@github.com"
+        git add public/
+        git commit -m "🤖 App assinado e publicado automaticamente" || exit 0
+        git push
